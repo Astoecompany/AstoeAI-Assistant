@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astoe Company AI Assistant Chatbot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.25.0/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+  
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css"
+    rel="stylesheet"
+  />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  
+  <style>
+    /* Custom CSS for chat interface using DaisyUI variables */
+    #chat {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background-color: var(--background-secondary);
+    }
+
+    #messages {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .message {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.5s forwards;
+    }
+
+    .message.user {
+      justify-content: flex-end;
+      animation: slideInRight 0.5s forwards;
+    }
+
+    .message.bot {
+      justify-content: flex-start;
+      animation: slideInLeft 0.5s forwards;
+    }
+
+    .message .avatar {
+      flex-shrink: 0;
+    }
+
+    .message .text {
+      max-width: 75%;
+      padding: 12px 20px;
+      border-radius: 20px;
+      position: relative;
+      word-wrap: break-word;
+      font-size: 16px;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.3s, background-color 0.3s;
+    }
+
+    .message.user .text {
+      background-color: var(--primary);
+      border-top-right-radius: 0;
+      transform: scale(0.95);
+      color: var(--text-on-primary);
+    }
+
+    .message.bot .text {
+      background-color: var(--background-base);
+      border-top-left-radius: 0;
+      transform: scale(0.95);
+      color: var(--text-base);
+    }
+
+    .message:hover .text {
+      transform: scale(1);
+    }
+
+    /* Adjust chat container to account for fixed header and input area */
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 64px); /* Adjust based on header height */
+      transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    #chat-container.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsive adjustments */
+    @media screen and (max-width: 600px) {
+      #input-area {
+        flex-direction: column;
+      }
+      #send {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        border-radius: 9999px;
+      }
+    }
+
+    /* Keyframes for message animations */
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* Header shadow using DaisyUI variable */
+    header {
+      box-shadow: var(--shadow-md);
+      transition: background-color 0.3s, box-shadow 0.3s;
+    }
+
+    /* Smooth theme transition */
+    body {
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* Scrollbar customization */
+    #chat::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #chat::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+
+    /* Animation for user info form */
+    .animate-fadeIn {
+      animation: fadeIn 1s forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Enhanced modal animation */
+    .modal-box {
+      animation: zoomIn 0.3s forwards;
+    }
+
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.7); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Fixed input area */
+    #input-area {
+      flex-shrink: 0;
+      background: var(--background-base);
+      padding: 1rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Accessibility Enhancements */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body class="bg-base-200" data-theme="light">
+  <!-- Header -->
+  <header
+    class="navbar bg-base-100 text-base-content p-4 fixed top-0 left-0 right-0 z-20"
+    role="banner"
+  >
+    <div class="flex-1 flex items-center">
+      <h1 class="text-2xl font-bold">Astoe AI Assistant</h1>
+    </div>
+    <div class="flex-none flex items-center space-x-2">
+      <!-- Theme Selector -->
+      <label for="theme-selector" class="sr-only">Select Theme</label>
+      <select
+        class="select select-bordered select-sm bg-base-100 text-base-content"
+        id="theme-selector"
+        aria-label="Select Theme"
+        onchange="changeTheme()"
+      >
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="cupcake">Cupcake</option>
+        <option value="bumblebee">Bumblebee</option>
+        <option value="emerald">Emerald</option>
+        <option value="synthwave">Synthwave</option>
+        <option value="cyberpunk">Cyberpunk</option>
+        <option value="valentine">Valentine</option>
+        <option value="halloween">Halloween</option>
+        <option value="garden">Garden</option>
+        <option value="forest">Forest</option>
+        <option value="aqua">Aqua</option>
+        <option value="lofi">Lofi</option>
+        <option value="pastel">Pastel</option>
+        <option value="fantasy">Fantasy</option>
+        <option value="wireframe">Wireframe</option>
+        <option value="black">Black</option>
+        <option value="luxury">Luxury</option>
+        <option value="dracula">Dracula</option>
+        <option value="cmyk">CMYK</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- User Information Form -->
+  <div
+    id="user-info"
+    class="flex justify-center items-center min-h-screen pt-16"
+    role="main"
+  >
+    <div
+      class="card w-full max-w-md shadow-2xl bg-base-100 transform transition duration-700 ease-in-out hover:scale-105 animate-fadeIn"
+    >
+      <div class="card-body">
+        <h2 class="card-title text-3xl text-center">Welcome! Let's Get Started</h2>
+        <div class="form-control mt-6">
+          <label class="label" for="user-name">
+            <span class="label-text">Name</span>
+          </label>
+          <input
+            type="text"
+            id="user-name"
+            class="input input-bordered focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="Enter your name"
+            aria-required="true"
+          />
+        </div>
+        <div class="form-control mt-4">
+          <label class="label" for="user-age">
+            <span class="label-text">Age</span>
+          </label>
+          <input
+            type="number"
+            id="user-age"
+            class="input input-bordered focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="Enter your age"
+            aria-required="true"
+            min="1"
+          />
+        </div>
+        <button
+          onclick="startChat()"
+          class="btn btn-primary mt-8 w-full btn-lg transition-transform transform hover:scale-105"
+          aria-label="Start Chatting"
+        >
+          Start Chatting
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Interface -->
+  <div
+    id="chat-container"
+    class="hidden flex flex-col pt-16 bg-base-200 transition-opacity duration-500 ease-in-out"
+    role="region"
+    aria-label="Chat Interface"
+  >
+    <div
+      id="chat"
+      class="flex-1 p-6 overflow-y-auto bg-base-200"
+      aria-live="polite"
+    >
+      <div id="messages" class="space-y-4"></div>
+    </div>
+    <div
+      id="input-area"
+      class="bg-base-100 p-4 flex items-center"
+    >
+      <div class="flex-1 relative">
+        <input
+          type="text"
+          id="input"
+          placeholder="Type a message..."
+          class="input input-bordered w-full pr-12 focus:outline-none focus:ring-2 focus:ring-primary"
+          onkeypress="onKeyPress(event)"
+          aria-label="Type your message"
+        />
+        <button
+          class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary transition-colors"
+          onclick="openEmojiPicker()"
+          aria-label="Insert Emoji"
+        >
+          <i class="bi bi-emoji-smile"></i>
+        </button>
+      </div>
+      <button
+        id="send"
+        onclick="sendMessage()"
+        class="btn btn-primary ml-4 rounded-full p-3 transition-transform transform hover:scale-105"
+        aria-label="Send Message"
+      >
+        <i class="bi bi-send-fill"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Emoji Picker Modal (Optional) -->
+  <div
+    id="emoji-picker-modal"
+    class="modal"
+    tabindex="-1"
+    aria-hidden="true"
+  >
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Select an Emoji</h3>
+      <div class="flex flex-wrap mt-4">
+        <!-- Add emoji buttons here -->
+        <button
+          class="btn btn-ghost m-1 text-2xl"
+          onclick="insertEmoji('😀')"
+          aria-label="Smiling Face"
+        >
+          😀
+        </button>
+        <button
+          class="btn btn-ghost m-1 text-2xl"
+          onclick="insertEmoji('😂')"
+          aria-label="Face with Tears of Joy"
+        >
+          😂
+        </button>
+        <button
+          class="btn btn-ghost m-1 text-2xl"
+          onclick="insertEmoji('😍')"
+          aria-label="Smiling Face with Heart-Eyes"
+        >
+          😍
+        </button>
+        <button
+          class="btn btn-ghost m-1 text-2xl"
+          onclick="insertEmoji('👍')"
+          aria-label="Thumbs Up"
+        >
+          👍
+        </button>
+        <button
+          class="btn btn-ghost m-1 text-2xl"
+          onclick="insertEmoji('🎉')"
+          aria-label="Party Popper"
+        >
+          🎉
+        </button>
+        <button
+          class="btn btn-ghost m-1 text-2xl"
+          onclick="insertEmoji('❤️')"
+          aria-label="Red Heart"
+        >
+          ❤️
+        </button>
+        <!-- Add more emojis as needed -->
+      </div>
+      <div class="modal-action">
+        <button class="btn" onclick="closeEmojiPicker()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    let userName = "";
+    let userAge = "";
+    const forbiddenWords = ["sex", "violence", "drugs"]; // Expanded prohibited words
+
+    /**
+     * Initiates the chat by collecting user info and displaying the chat interface.
+     */
+    function startChat() {
+      const nameInput = document.getElementById("user-name");
+      const ageInput = document.getElementById("user-age");
+
+      userName = nameInput.value.trim();
+      userAge = ageInput.value.trim();
+
+      if (!userName || !userAge) {
+        Swal.fire({
+          icon: "error",
+          title: "Incomplete Information",
+          text: "Please enter both your name and age.",
+        });
+        return;
+      }
+
+      // Show SweetAlert loading message
+      Swal.fire({
+        title: "Connecting...",
+        text: "Establishing connection with the server...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      // Simulate a delay for connection (e.g., 2 seconds)
+      setTimeout(() => {
+        Swal.close(); // Close the loading alert
+        document.getElementById("user-info").classList.add("hidden");
+        const chatContainer = document.getElementById("chat-container");
+        chatContainer.classList.remove("hidden");
+        chatContainer.classList.add("show"); // Trigger CSS transition
+        scrollToBottom();
+        // Optionally, send a welcome message from the bot
+        addMessage(
+          "bot",
+          `Hello ${userName}! How can I assist you today?`
+        );
+      }, 2000);
+    }
+
+    /**
+     * Handles the Enter key press in the message input to send the message.
+     * @param {KeyboardEvent} e - The keypress event.
+     */
+    function onKeyPress(e) {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    }
+
+    /**
+     * Sends the user's message to the backend and displays the bot's response.
+     */
+    function sendMessage() {
+      const input = document.getElementById("input");
+      let message = input.value.trim();
+
+      // Check for prohibited content
+      if (
+        message === "" ||
+        forbiddenWords.some((word) => message.toLowerCase().includes(word))
+      ) {
+        Swal.fire({
+          icon: "warning",
+          title: "Prohibited Content",
+          text: "Your message contains prohibited content.",
+        });
+        return;
+      }
+
+      // Display the user's message
+      addMessage("user", `${userName}: ${message}`);
+      input.value = "";
+
+      // Show a typing indicator
+      addMessage("bot", "Bot is typing...");
+
+      // Call the backend to get the bot response
+      google.script.run
+        .withSuccessHandler(function(reply) {
+          // Remove the typing indicator
+          const messages = document.getElementById("messages");
+          const lastMessage = messages.lastChild;
+          if (lastMessage && lastMessage.querySelector(".text").textContent === "Bot is typing...") {
+            messages.removeChild(lastMessage);
+          }
+          // Add the actual response
+          addMessage("bot", reply);
+          scrollToBottom();
+        })
+        .withFailureHandler(function(error) {
+          console.error("Error:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "There was an error processing your request.",
+          });
+        })
+        .getResponse(message);
+    }
+
+    function addMessage(sender, text) {
+      const messages = document.getElementById("messages");
+      const messageDiv = document.createElement("div");
+      messageDiv.className = `message ${sender}`;
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar w-10 h-10 rounded-full flex items-center justify-center bg-primary text-white font-bold";
+      avatar.textContent = sender === "user" ? "U" : "B";
+      avatar.alt = sender === "user" ? "User Avatar" : "Bot Avatar";
+      messageDiv.appendChild(avatar);
+
+      const textDiv = document.createElement("div");
+      textDiv.className = "text";
+      if (text.includes("```")) {
+        // Split the text into parts
+        const parts = text.split("```");
+        parts.forEach((part, index) => {
+          if (index % 2 === 0) {
+            // Regular text
+            const p = document.createElement("p");
+            p.textContent = part;
+            textDiv.appendChild(p);
+          } else {
+            // Code block
+            const pre = document.createElement("pre");
+            const code = document.createElement("code");
+            code.className = "language-javascript"; 
+            code.textContent = part;
+            pre.appendChild(code);
+            textDiv.appendChild(pre);
+          }
+        });
+      } else {
+        textDiv.textContent = text;
+      }
+
+      messageDiv.appendChild(textDiv);
+      messages.appendChild(messageDiv);
+      Prism.highlightAll(); // Highlight all code blocks
+      scrollToBottom();
+    }
+    function scrollToBottom() {
+      const chat = document.getElementById("chat");
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function changeTheme() {
+      const theme = document.getElementById("theme-selector").value;
+      document.body.setAttribute("data-theme", theme);
+    }
+
+    function openEmojiPicker() {
+      const modal = document.getElementById("emoji-picker-modal");
+      modal.classList.add("modal-open");
+    }
+
+    function closeEmojiPicker() {
+      const modal = document.getElementById("emoji-picker-modal");
+      modal.classList.remove("modal-open");
+    }
+
+    function insertEmoji(emoji) {
+      const input = document.getElementById("input");
+      input.value += emoji;
+      closeEmojiPicker();
+      input.focus();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const userInfo = document.getElementById("user-info");
+      userInfo.classList.add("animate-fadeIn");
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.js"></script>
+</body>
+</html>
